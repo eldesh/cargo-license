@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 use std::collections::btree_map::Entry::*;
 use ansi_term::Colour::Green;
 
-fn group_by_license_type(dependencies: Vec<cargo_license::Dependency>, display_authors: bool) {
+fn group_by_license_type(dependencies: Vec<cargo_license::Dependency>, display_authors: bool, without_color: bool) {
 
     let mut table: BTreeMap<String, Vec<cargo_license::Dependency>> = BTreeMap::new();
 
@@ -30,21 +30,33 @@ fn group_by_license_type(dependencies: Vec<cargo_license::Dependency>, display_a
                     .flat_map(|c| c.get_authors().unwrap_or(vec![]))
                     .collect::<BTreeSet<_>>();
             println!("{} ({})\n{}\n{} {}",
-                     Green.bold().paint(license),
+                     if without_color {
+                         license.into()
+                     } else {
+                         Green.bold().paint(license)
+                     },
                      crates.len(),
                      crate_names.join(", "),
-                     Green.paint("by"),
+                     if without_color {
+                         "by".into()
+                     } else {
+                         Green.paint("by")
+                     },
                      crate_authors.into_iter().collect::<Vec<_>>().join(", "));
         } else {
             println!("{} ({}): {}",
-                     Green.bold().paint(license),
+                     if without_color {
+                         license.into()
+                     } else {
+                         Green.bold().paint(license)
+                     },
                      crates.len(),
                      crate_names.join(", "));
         }
     }
 }
 
-fn one_license_per_line(dependencies: Vec<cargo_license::Dependency>, display_authors: bool) {
+fn one_license_per_line(dependencies: Vec<cargo_license::Dependency>, display_authors: bool, without_color: bool) {
 
     for dependency in dependencies {
         let name = dependency.name.clone();
@@ -54,15 +66,27 @@ fn one_license_per_line(dependencies: Vec<cargo_license::Dependency>, display_au
         if display_authors {
             let authors = dependency.get_authors().unwrap_or(vec![]);
             println!("{}: {}, \"{}\", {}, {} \"{}\"",
-                     Green.bold().paint(name),
+                     if without_color {
+                         name.into()
+                     } else {
+                         Green.bold().paint(name)
+                     },
                      version,
                      license,
                      source,
-                     Green.paint("by"),
+                     if without_color {
+                         "by".into()
+                     } else {
+                         Green.paint("by")
+                     },
                      authors.into_iter().collect::<Vec<_>>().join(", "));
         } else {
             println!("{}: {}, \"{}\", {}",
-                     Green.bold().paint(name),
+                     if without_color {
+                         name.into()
+                     } else {
+                         Green.bold().paint(name)
+                     },
                      version,
                      license,
                      source);
@@ -82,6 +106,7 @@ fn main() {
     let program = args[0].clone();
     opts.optflag("a", "authors", "Display crate authors");
     opts.optflag("d", "do-not-bundle", "Output one license per line.");
+    opts.optflag("m", "without-color", "Output without color.");
     opts.optflag("h", "help", "print this help menu");
 
     let matches = match opts.parse(&args[1..]) {
@@ -96,6 +121,7 @@ fn main() {
 
     let display_authors = matches.opt_present("authors");
     let do_not_bundle = matches.opt_present("do-not-bundle");
+    let without_color = matches.opt_present("without-color");
 
     let dependencies = match cargo_license::get_dependencies_from_cargo_lock() {
         Ok(m) => m,
@@ -106,9 +132,9 @@ fn main() {
     };
 
     if do_not_bundle {
-        one_license_per_line(dependencies, display_authors);
+        one_license_per_line(dependencies, display_authors, without_color);
     } else {
-        group_by_license_type(dependencies, display_authors);
+        group_by_license_type(dependencies, display_authors, without_color);
     }
 
 }
