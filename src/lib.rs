@@ -3,8 +3,8 @@ extern crate toml;
 #[macro_use]
 extern crate error_chain;
 
-use std::io;
 use cargo::util::CargoResult;
+use std::io;
 
 // I thought this crate is a good example to learn error_chain
 // but looks like no need of it in this crate
@@ -29,13 +29,12 @@ pub struct Dependency {
     pub source: String,
 }
 
-
 impl Dependency {
     fn get_cargo_package(&self) -> CargoResult<cargo::core::Package> {
-        use cargo::core::{Source, SourceId, Registry};
         use cargo::core::Dependency as CargoDependency;
-        use cargo::util::{Config, human};
+        use cargo::core::{Registry, Source, SourceId};
         use cargo::sources::SourceConfigMap;
+        use cargo::util::{human, Config};
 
         // TODO: crates-license is only working for crates.io registry
         if !self.source.starts_with("registry") {
@@ -83,15 +82,11 @@ impl Dependency {
 
     pub fn get_license(&self) -> Option<String> {
         match self.get_cargo_package() {
-            Ok(pkg) => {
-                self.normalize(&pkg.manifest().metadata().license)
-            }
+            Ok(pkg) => self.normalize(&pkg.manifest().metadata().license),
             Err(_) => None,
         }
     }
 }
-
-
 
 pub fn get_dependencies_from_cargo_lock() -> Result<Vec<Dependency>> {
     let toml = {
@@ -107,39 +102,37 @@ pub fn get_dependencies_from_cargo_lock() -> Result<Vec<Dependency>> {
 
     // This code once was beautiful, but it became ugly after rustfmt
     let dependencies: Vec<Dependency> = toml::Parser::new(&toml)
-                                                 .parse()
-                                                 .as_ref()
-                                                 .and_then(|p| p.get("package"))
-                                                 .and_then(|p| p.as_slice())
-                                                 .ok_or("Package not found")
-                                                 .map(|p| {
-        p.iter()
-            .map(|p| {
-                Dependency {
-                    name: p.as_table()
+        .parse()
+        .as_ref()
+        .and_then(|p| p.get("package"))
+        .and_then(|p| p.as_slice())
+        .ok_or("Package not found")
+        .map(|p| {
+            p.iter()
+                .map(|p| Dependency {
+                    name: p
+                        .as_table()
                         .and_then(|n| n.get("name"))
                         .and_then(|n| n.as_str())
                         .unwrap()
                         .to_owned(),
-                    version: p.as_table()
+                    version: p
+                        .as_table()
                         .and_then(|n| n.get("version"))
                         .and_then(|n| n.as_str())
                         .unwrap()
                         .to_owned(),
-                    source: p.as_table()
+                    source: p
+                        .as_table()
                         .and_then(|n| n.get("source"))
                         .and_then(|n| n.as_str())
                         .unwrap_or("")
                         .to_owned(),
-                }
-            })
-            .collect()
-    })?;
+                }).collect()
+        })?;
 
     Ok(dependencies)
 }
-
-
 
 #[cfg(test)]
 mod test {
@@ -147,7 +140,6 @@ mod test {
 
     #[test]
     fn test() {
-
         for dependency in get_dependencies_from_cargo_lock().unwrap() {
             assert!(!dependency.get_license().unwrap().is_empty());
         }
